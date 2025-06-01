@@ -55,6 +55,7 @@ async function run() {
         const jobId = application.jobId;
         const jobQuery = { _id: new ObjectId(jobId) };
         const job = await jobsCollection.findOne(jobQuery);
+        application.company = job.company;
       }
       res.send(result);
     });
