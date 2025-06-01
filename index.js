@@ -46,12 +46,17 @@ async function run() {
     });
 
     // job applications api
-    app.post('/applications',async(req,res)=>{
-      const application=req.body
-      console.log(application)
-      const result =await applicationsCollection.insertOne(application)
-      res.send(result)
-    })
+    app.get("/applications", async (req, res) => {
+      const email = req.query.email;
+      
+    });
+
+    app.post("/applications", async (req, res) => {
+      const application = req.body;
+      console.log(application);
+      const result = await applicationsCollection.insertOne(application);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
