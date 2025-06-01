@@ -50,6 +50,12 @@ async function run() {
       const email = req.query.email;
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
+      // bad way to aggregate data
+      for (const application of reuslt) {
+        const jobId = application.jobId;
+        const jobQuery = { _id: new ObjectId(jobId) };
+        const job = await jobsCollection.findOne(jobQuery);
+      }
       res.send(result);
     });
 
