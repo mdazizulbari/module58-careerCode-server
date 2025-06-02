@@ -38,6 +38,12 @@ async function run() {
       res.send(result);
     });
 
+    // could be done
+    app.get("/jobsByEmailAddress", async (req, res) => {
+      const email = req.query.email;
+      const query = { hr_email: email };
+    });
+
     app.get("/jobs/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
