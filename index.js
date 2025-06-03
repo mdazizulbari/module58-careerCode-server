@@ -33,13 +33,14 @@ async function run() {
 
     // jobs api
     app.get("/jobs", async (req, res) => {
+      // getting data with ?email=""
       const email = req.query.email;
       const query = {};
       if (email) {
         query.hr_email = email;
       }
 
-      const cursor = jobsCollection.find();
+      const cursor = jobsCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -48,7 +49,7 @@ async function run() {
     // app.get("/jobsByEmailAddress", async (req, res) => {
     //   const email = req.query.email;
     //   const query = { hr_email: email };
-    //   const result = await jobsCollection.find(query);
+    //   const result = await jobsCollection.find(query).toArray();
     //   res.send(result);
     // });
 
@@ -66,7 +67,7 @@ async function run() {
       res.send(result);
     });
 
-    // job applications api
+    // applications api
     app.get("/applications", async (req, res) => {
       const email = req.query.email;
       const query = { applicant: email };
