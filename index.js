@@ -18,6 +18,12 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+var admin = require("firebase-admin");
+var serviceAccount = require("./firebase-admin-key.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 const logger = (req, res, next) => {
   console.log("inside the logger middleware");
   next();
@@ -52,6 +58,19 @@ const verifyToken = (req, res, next) => {
 //     next();
 //   });
 // };
+
+const verifyFirebaseToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  // console.log("firebase token", token);
+  const userInfo = await admin.auth().verifyIdToken(token);
+  console.log("inside the token", userInfo);
+  req.tokenEmail = userInfo.email;
+  next();
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bsqinhw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -152,12 +171,15 @@ async function run() {
     });
 
     // job applications related api
-    app.get("/applications", logger, async (req, res) => {
+    app.get("/applications", logger, verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
+      if (req.tokenEmail !== email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       // console.log("inside applications api", req.cookies);
       // decoder
       // if (email !== req.decoded.email) {
-      //   return res.status(403).send({ message: "forbidden access" });
+      // return res.status(403).send({ message: "forbidden access" });
       // }
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
