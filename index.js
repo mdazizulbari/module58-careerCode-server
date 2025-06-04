@@ -11,18 +11,31 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(
   cors({
-    // origin: ["http://localhost:5173"],
-    // credentials: true,
+    origin: ["http://localhost:5173"],
+    credentials: true,
   })
 );
 app.use(express.json());
-// app.use(cookieParser());
+app.use(cookieParser());
 
 const logger = (req, res, next) => {
   console.log("inside the logger middleware");
   next();
 };
 
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
 // const verifyToken = (req, res, next) => {
 //   const token = req?.cookies?.token;
 //   console.log("cookie in the middleware", req.cookies);
@@ -63,17 +76,28 @@ async function run() {
 
     // jwt token related api
     app.post("/jwt", async (req, res) => {
-      const userData = req.body;
-      const token = jwt.sign(userData, process.env.JWT_ACCESS_SECRET, {
-        expiresIn: "1d",
+      const userInfo = req.body;
+      const token = jwt.sign(userInfo, process.env.JWT_ACCESS_SECRET, {
+        expiresIn: "2h",
       });
-      // set token in the cookies
       res.cookie("token", token, {
         httpOnly: true,
         secure: false,
       });
       res.send({ success: true });
     });
+    // app.post("/jwt", async (req, res) => {
+    //   const userData = req.body;
+    //   const token = jwt.sign(userData, process.env.JWT_ACCESS_SECRET, {
+    //     expiresIn: "1d",
+    //   });
+    //   // set token in the cookies
+    //   res.cookie("token", token, {
+    //     httpOnly: true,
+    //     secure: false,
+    //   });
+    //   res.send({ success: true });
+    // });
 
     // jobs api
     app.get("/jobs", async (req, res) => {
@@ -97,7 +121,7 @@ async function run() {
     //   res.send(result);
     // });
 
-    app.get("/jobs/applications", async (req, res) => {
+    app.get("/jobs/applications", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { hr_email: email };
       const jobs = await jobsCollection.find(query).toArray();
@@ -131,9 +155,10 @@ async function run() {
     app.get("/applications", logger, async (req, res) => {
       const email = req.query.email;
       // console.log("inside applications api", req.cookies);
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
+      // decoder
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
       // bad way to aggregate data
