@@ -18,6 +18,18 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+const logger = (req, res, next) => {
+  console.log("inside the logger middleware");
+  next();
+};
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  console.log("cookie in the middleware", req.cookies);
+  //
+  next();
+};
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bsqinhw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -106,9 +118,9 @@ async function run() {
     });
 
     // applications related api
-    app.get("/applications", async (req, res) => {
+    app.get("/applications", logger, verifyToken, async (req, res) => {
       const email = req.query.email;
-      console.log("inside applications api", req.cookies);
+      // console.log("inside applications api", req.cookies);
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
       // bad way to aggregate data
