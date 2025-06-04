@@ -11,34 +11,34 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
-    credentials: true,
+    // origin: ["http://localhost:5173"],
+    // credentials: true,
   })
 );
 app.use(express.json());
-app.use(cookieParser());
+// app.use(cookieParser());
 
 const logger = (req, res, next) => {
   console.log("inside the logger middleware");
   next();
 };
 
-const verifyToken = (req, res, next) => {
-  const token = req?.cookies?.token;
-  console.log("cookie in the middleware", req.cookies);
-  if (!token) {
-    return res.status(401).send({ message: "unauthorized access" });
-  }
-  // verify token
-  jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({ message: "unauthorized access" });
-    }
-    req.decoded = decoded;
-    // console.log(decoded);
-    next();
-  });
-};
+// const verifyToken = (req, res, next) => {
+//   const token = req?.cookies?.token;
+//   console.log("cookie in the middleware", req.cookies);
+//   if (!token) {
+//     return res.status(401).send({ message: "unauthorized access" });
+//   }
+//   // verify token
+//   jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
+//     if (err) {
+//       return res.status(401).send({ message: "unauthorized access" });
+//     }
+//     req.decoded = decoded;
+//     // console.log(decoded);
+//     next();
+//   });
+// };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bsqinhw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -128,7 +128,7 @@ async function run() {
     });
 
     // job applications related api
-    app.get("/applications", logger, verifyToken, async (req, res) => {
+    app.get("/applications", logger, async (req, res) => {
       const email = req.query.email;
       // console.log("inside applications api", req.cookies);
       if (email !== req.decoded.email) {
