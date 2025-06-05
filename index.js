@@ -30,19 +30,19 @@ const logger = (req, res, next) => {
   next();
 };
 
-const verifyToken = (req, res, next) => {
-  const token = req?.cookies?.token;
-  if (!token) {
-    return res.status(401).send({ message: "unauthorized access" });
-  }
-  jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({ message: "unauthorized access" });
-    }
-    req.decoded = decoded;
-    next();
-  });
-};
+// const verifyToken = (req, res, next) => {
+//   const token = req?.cookies?.token;
+//   if (!token) {
+//     return res.status(401).send({ message: "unauthorized access" });
+//   }
+//   jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
+//     if (err) {
+//       return res.status(401).send({ message: "unauthorized access" });
+//     }
+//     req.decoded = decoded;
+//     next();
+//   });
+// };
 // const verifyToken = (req, res, next) => {
 //   const token = req?.cookies?.token;
 //   console.log("cookie in the middleware", req.cookies);
@@ -80,10 +80,17 @@ const verifyFirebaseToken = async (req, res, next) => {
     return res.status(401).send({ message: "unauthorized access" });
   }
   // console.log("firebase token", token);
-  const userInfo = await admin.auth().verifyIdToken(token);
+  // const userInfo = await admin.auth().verifyIdToken(token);
   // console.log("inside the token", userInfo);
   // req.tokenEmail = userInfo.email;
   // next();
+};
+
+const verifyTokenEmail = (req, res, next) => {
+  if (req.query.email !== req.decoded.email) {
+    return res.status(403).send({ message: "forbidden access" });
+  }
+  next();
 };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bsqinhw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -154,25 +161,31 @@ async function run() {
     //   res.send(result);
     // });
 
-    app.get("/jobs/applications", verifyFirebaseToken, async (req, res) => {
-      const email = req.query.email;
+    app.get(
+      "/jobs/applications",
+      verifyFirebaseToken,
+      verifyTokenEmail,
+      async (req, res) => {
+        const email = req.query.email;
 
-      if (email !== req.decoded.email) {
-        return res.status(405).send({ message: "forbidden access" });
-      }
-      const query = { hr_email: email };
-      const jobs = await jobsCollection.find(query).toArray();
+        // if (email !== req.decoded.email) {
+        // return res.status(403).send({ message: "forbidden access" });
+        // }
 
-      // should use aggregate to have optimal data fetching
-      for (const job of jobs) {
-        const applicationQuery = { jobId: job._id.toString() };
-        const application_count = await applicationsCollection.countDocuments(
-          applicationQuery
-        );
-        job.application_count = application_count;
+        const query = { hr_email: email };
+        const jobs = await jobsCollection.find(query).toArray();
+
+        // should use aggregate to have optimal data fetching
+        for (const job of jobs) {
+          const applicationQuery = { jobId: job._id.toString() };
+          const application_count = await applicationsCollection.countDocuments(
+            applicationQuery
+          );
+          job.application_count = application_count;
+        }
+        res.send(jobs);
       }
-      res.send(jobs);
-    });
+    );
 
     app.get("/jobs/:id", async (req, res) => {
       const id = req.params.id;
@@ -189,33 +202,41 @@ async function run() {
     });
 
     // job applications related api
-    app.get("/applications", logger, verifyFirebaseToken, async (req, res) => {
-      const email = req.query.email;
-      // console.log("req header", req.headers);
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "forbidden access" });
+    app.get(
+      "/applications",
+      logger,
+      verifyFirebaseToken,
+      verifyTokenEmail,
+      async (req, res) => {
+        const email = req.query.email;
+        // console.log("req header", req.headers);
+
+        // if (email !== req.decoded.email) {
+        //   return res.status(403).send({ message: "forbidden access" });
+        // }
+
+        // if (req.tokenEmail !== email) {
+        // return res.status(403).send({ message: "forbidden access" });
+        // }
+        // console.log("inside applications api", req.cookies);
+        // decoder
+        // if (email !== req.decoded.email) {
+        // return res.status(403).send({ message: "forbidden access" });
+        // }
+        const query = { applicant: email };
+        const result = await applicationsCollection.find(query).toArray();
+        // bad way to aggregate data
+        for (const application of result) {
+          const jobId = application.jobId;
+          const jobQuery = { _id: new ObjectId(jobId) };
+          const job = await jobsCollection.findOne(jobQuery);
+          application.company = job.company;
+          application.title = job.title;
+          application.company_logo = job.company_logo;
+        }
+        res.send(result);
       }
-      // if (req.tokenEmail !== email) {
-      // return res.status(403).send({ message: "forbidden access" });
-      // }
-      // console.log("inside applications api", req.cookies);
-      // decoder
-      // if (email !== req.decoded.email) {
-      // return res.status(403).send({ message: "forbidden access" });
-      // }
-      const query = { applicant: email };
-      const result = await applicationsCollection.find(query).toArray();
-      // bad way to aggregate data
-      for (const application of result) {
-        const jobId = application.jobId;
-        const jobQuery = { _id: new ObjectId(jobId) };
-        const job = await jobsCollection.findOne(jobQuery);
-        application.company = job.company;
-        application.title = job.title;
-        application.company_logo = job.company_logo;
-      }
-      res.send(result);
-    });
+    );
 
     // app.get("/applications/:id", () => {});
     app.get("/applications/job/:job_id", async (req, res) => {
